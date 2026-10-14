@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { afterNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import Preloader from '../lib/Preloader.svelte';
 	import 'purecss/build/pure-min.css';
 	import 'purecss/build/grids-responsive-min.css';
 	import './styles.css';
@@ -68,6 +69,8 @@
 		closeMenu();
 	});
 </script>
+
+<Preloader text="Загрузка..." />
 
 <div class="custom-wrapper pure-g" id="menu" bind:this={menu}>
 	<div class="pure-u-1 pure-u-md-1-3">
