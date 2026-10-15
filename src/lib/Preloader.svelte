@@ -25,19 +25,16 @@
 		dotSize = 5,
 		speed = 1.25,
 		bloom = true,
-		color = '#ff3e00',
+		color = 'currentColor',
 		text = '',
 		fullscreen = true,
 		show = false
 	}: Props = $props();
 
-	// Calculate Manhattan distance from the center (2,2) in a 5x5 grid (0..4)
 	function getManhattanDistance(row: number, col: number): number {
 		return Math.abs(row - 2) + Math.abs(col - 2);
 	}
 
-	// Active layout grid definition (5x5 matrix)
-	// Grid is 5x5, so row 0..4 and col 0..4
 	const gridDots = Array.from({ length: 25 }, (_, i) => {
 		const row = Math.floor(i / 5);
 		const col = i % 5;
@@ -57,7 +54,7 @@
 
 {#if isVisible}
 	<div
-		class="dmx-preloader-container"
+		class="dmx-preloader-container text-primary"
 		class:dmx-fullscreen={fullscreen}
 		style:--dmx-color={color}
 		style:--dmx-size="{size}px"
@@ -93,7 +90,6 @@
 		align-items: center;
 		justify-content: center;
 		gap: 12px;
-		color: var(--dmx-color, #ff3e00);
 		--dmx-cycle: 1.5s;
 		--dmx-opacity-base: 0.16;
 		--dmx-opacity-mid: 0.32;
@@ -106,7 +102,7 @@
 		left: 0;
 		width: 100vw;
 		height: 100vh;
-		background: rgba(255, 255, 255, 0.85);
+		background: hsl(var(--background) / 0.85);
 		backdrop-filter: blur(4px);
 		z-index: 9999;
 	}
@@ -155,7 +151,7 @@
 	.dmx-text {
 		font-family: var(--font-mono, monospace);
 		font-size: 0.875rem;
-		color: var(--color-text, rgba(0, 0, 0, 0.7));
+		color: hsl(var(--foreground));
 		letter-spacing: 0.05em;
 	}
 
