@@ -1,6 +1,14 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
-	import { Button, Card, CardHeader, CardTitle, CardDescription, CardContent, Badge } from '../../lib/index.js';
+	import {
+		Button,
+		Card,
+		CardHeader,
+		CardTitle,
+		CardDescription,
+		CardContent,
+		Badge
+	} from '../../lib/index.js';
 	import { Play, Type, Terminal } from '@lucide/svelte';
 
 	let displayText = $state('');
@@ -52,7 +60,8 @@
 			</Badge>
 			<h1 class="text-3xl md:text-5xl font-extrabold tracking-tight mb-4">Typewriter Effect</h1>
 			<p class="text-muted-foreground max-w-xl mx-auto">
-				Интерактивная анимация печатной машинки с использованием таймеров и реактивного состояния Svelte 5.
+				Интерактивная анимация печатной машинки с использованием таймеров и реактивного состояния
+				Svelte 5.
 			</p>
 		</div>
 
@@ -64,7 +73,9 @@
 				</div>
 				<CardDescription class="text-xs">Нажмите START! для запуска</CardDescription>
 			</CardHeader>
-			<CardContent class="p-6 font-mono text-sm leading-relaxed bg-muted/20 min-h-[220px] rounded-b-xl flex flex-col justify-between">
+			<CardContent
+				class="p-6 font-mono text-sm leading-relaxed bg-muted/20 min-h-[220px] rounded-b-xl flex flex-col justify-between"
+			>
 				<div class="whitespace-pre-wrap break-words min-h-[160px]">
 					{displayText}
 					<span class="inline-block w-2 h-4 bg-primary animate-pulse ml-0.5 align-middle"></span>

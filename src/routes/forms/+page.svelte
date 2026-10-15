@@ -39,7 +39,8 @@
 			</Badge>
 			<h1 class="text-3xl md:text-5xl font-extrabold tracking-tight mb-4">Формы в SvelteKit</h1>
 			<p class="text-muted-foreground max-w-xl mx-auto">
-				Пример работы с серверными экшенами SvelteKit, валидацией данных и динамическим списком записей.
+				Пример работы с серверными экшенами SvelteKit, валидацией данных и динамическим списком
+				записей.
 			</p>
 		</div>
 
@@ -108,7 +109,9 @@
 							id="message"
 							rows={5}
 							placeholder="Напишите ваше сообщение..."
-							class={form?.errors?.message ? 'border-destructive focus-visible:ring-destructive' : ''}
+							class={form?.errors?.message
+								? 'border-destructive focus-visible:ring-destructive'
+								: ''}
 							aria-invalid={!!form?.errors?.message}
 							required
 						></Textarea>

@@ -25,53 +25,73 @@
 		<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 			<Card class="shadow-sm">
 				<CardHeader>
-					<div class="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-2">
+					<div
+						class="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-2"
+					>
 						<Code class="h-5 w-5" />
 					</div>
 					<CardTitle>Современный стек</CardTitle>
 					<CardDescription>Svelte 5 & Vite 8</CardDescription>
 				</CardHeader>
 				<CardContent class="text-sm text-muted-foreground space-y-2">
-					<p>Использование реактивных рун Svelte 5 (`$state`, `$derived`, `$props`) для создания предсказуемого и высокопроизводительного интерфейса.</p>
+					<p>
+						Использование реактивных рун Svelte 5 (`$state`, `$derived`, `$props`) для создания
+						предсказуемого и высокопроизводительного интерфейса.
+					</p>
 				</CardContent>
 			</Card>
 
 			<Card class="shadow-sm">
 				<CardHeader>
-					<div class="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-2">
+					<div
+						class="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-2"
+					>
 						<Layers class="h-5 w-5" />
 					</div>
 					<CardTitle>Shadcn UI & Tailwind CSS</CardTitle>
 					<CardDescription>Кастомизируемая система компонентов</CardDescription>
 				</CardHeader>
 				<CardContent class="text-sm text-muted-foreground space-y-2">
-					<p>Красивые accessible компоненты без привязки к громоздким UI библиотекам. Полный контроль над стилями через Tailwind CSS v4.</p>
+					<p>
+						Красивые accessible компоненты без привязки к громоздким UI библиотекам. Полный контроль
+						над стилями через Tailwind CSS v4.
+					</p>
 				</CardContent>
 			</Card>
 
 			<Card class="shadow-sm">
 				<CardHeader>
-					<div class="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-2">
+					<div
+						class="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-2"
+					>
 						<Sparkles class="h-5 w-5" />
 					</div>
 					<CardTitle>cnblocks Инспирация</CardTitle>
 					<CardDescription>Готовые блоки интерфейсов</CardDescription>
 				</CardHeader>
 				<CardContent class="text-sm text-muted-foreground space-y-2">
-					<p>Интеграция концептов и дизайнов Mist Hero из коллекции cnblocks для создания визуально привлекательных стартовых секций.</p>
+					<p>
+						Интеграция концептов и дизайнов Mist Hero из коллекции cnblocks для создания визуально
+						привлекательных стартовых секций.
+					</p>
 				</CardContent>
 			</Card>
 
 			<Card class="shadow-sm">
 				<CardHeader>
-					<div class="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-2">
+					<div
+						class="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-2"
+					>
 						<ShieldCheck class="h-5 w-5" />
 					</div>
 					<CardTitle>SvelteKit 3</CardTitle>
 					<CardDescription>Адаптер для Node.js</CardDescription>
 				</CardHeader>
 				<CardContent class="text-sm text-muted-foreground space-y-2">
-					<p>Серверный рендеринг, эффективная маршрутизация и использование SvelteKit Form Actions для работы с данными.</p>
+					<p>
+						Серверный рендеринг, эффективная маршрутизация и использование SvelteKit Form Actions
+						для работы с данными.
+					</p>
 				</CardContent>
 			</Card>
 		</div>
