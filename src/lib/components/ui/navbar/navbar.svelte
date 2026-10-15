@@ -24,11 +24,18 @@
 	});
 </script>
 
-<header class="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+<header
+	class="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+>
 	<div class="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
 		<!-- Brand Logo -->
-		<a href={resolve('/')} class="flex items-center gap-2 font-bold text-lg hover:opacity-90 transition-opacity">
-			<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+		<a
+			href={resolve('/')}
+			class="flex items-center gap-2 font-bold text-lg hover:opacity-90 transition-opacity"
+		>
+			<div
+				class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm"
+			>
 				<Sparkles class="h-4 w-4" />
 			</div>
 			<span>SvelteKit App</span>
