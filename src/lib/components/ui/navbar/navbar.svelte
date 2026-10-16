@@ -10,9 +10,10 @@
 
 	const navItems = [
 		{ href: '/', label: 'Главная', id: '/' },
-		{ href: '/about', label: 'О нас', id: '/about' },
+		{ href: '/gists', label: 'Gist Manager', id: '/gists' },
 		{ href: '/forms', label: 'Формы', id: '/forms' },
-		{ href: '/typer', label: 'Печатная машинка', id: '/typer' }
+		{ href: '/typer', label: 'Печатная машинка', id: '/typer' },
+		{ href: '/about', label: 'О нас', id: '/about' }
 	] as const;
 
 	function toggleMenu() {
