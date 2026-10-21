@@ -1,55 +1,43 @@
 # Project Description
 
-SvelteKit application configured for Node.js runtime.
+SvelteKit application — a Gist Manager plus a few example pages (forms, typer, about), published to
+[Spacefast](https://spacefast.com) as a prerendered static site.
+
+## How it is hosted
+
+Spacefast cannot run `@sveltejs/adapter-node`: its only server runtime is a Workers-style isolate.
+So the app is built with `@sveltejs/adapter-static` and every route is prerendered
+(`src/routes/+layout.ts`). There is no server code — the build output in `build/` is plain HTML and
+hashed assets that any static host can serve.
+
+The Gist Manager therefore runs entirely in the browser:
+
+- The GitHub token lives in `localStorage` (`src/lib/session.ts`) and is sent to `api.github.com` in
+  an `Authorization` header on each request (`src/lib/github.ts`).
+- No proxy is involved. The GitHub REST API answers with `Access-Control-Allow-Origin: *` and its
+  preflight allows the `Authorization` header, so a static page may call it directly.
+
+Trade-off: any script running on this origin can read the token. That is accepted for a personal
+tool; do not put a token with broad scopes on a shared or untrusted deployment. The token needs the
+`gist` scope only.
 
 ## Running in Production
 
-Build the application:
+```bash
+npm run build     # prerenders every route into build/
+npm start         # vite preview --port 9000 (local preview of build/)
+```
+
+## Deploying to Spacefast
 
 ```bash
+sf login
 npm run build
+sf publish ./build
 ```
 
-Start the Node.js server:
-
-```bash
-npm start             # port 9000
-PORT=3000 node build  # any other port; adapter-node defaults to 3000
-```
-
-### Deriving the request origin
-
-HTTP carries no reliable information about the URL that was requested, so `@sveltejs/adapter-node`
-falls back to the `https` protocol. When the app is reached directly over plain HTTP, `url.origin`
-will not match the browser's `Origin` header and form submissions fail with
-`403 Cross-site POST form submissions are forbidden`.
-
-**Behind a reverse proxy** — forward the original protocol and host:
-
-```bash
-PROTOCOL_HEADER=x-forwarded-proto HOST_HEADER=x-forwarded-host node build
-```
-
-Only set these when the server really is behind a trusted reverse proxy, otherwise clients can
-spoof them.
-
-**Without a reverse proxy** — declare the origin in `vite.config.ts`:
-
-```ts
-sveltekit({
-	adapter: adapter(),
-	paths: { origin: process.env.ORIGIN }
-});
-```
-
-```bash
-ORIGIN=http://localhost:9000 npm run build
-npm start
-```
-
-`paths.origin` is inlined during `npm run build`, so `ORIGIN` must be set at build time — setting it
-only on the `node build` command has no effect. Earlier versions of SvelteKit read `ORIGIN`
-directly at runtime; that environment variable no longer exists in SvelteKit 3.
+`sf publish ./build` uploads the prerendered directory through the static path. Running `sf publish`
+with no argument also works — Spacefast then builds the project itself.
 
 ## Development
 
@@ -58,4 +46,12 @@ npm run dev     # dev server
 npm run check   # svelte-check
 npm run lint    # prettier --check + eslint
 npm run format  # prettier --write
+npm test        # vitest
 ```
+
+### Tailwind
+
+Tailwind v4 is wired through the `@tailwindcss/vite` plugin. There is no `postcss.config.js`; using
+the PostCSS plugin instead (`@tailwindcss/postcss`) makes `adapter-static` builds fail on
+`@import 'tailwindcss'`, because Vite's own `postcss-import` resolves the import before Tailwind
+runs. Keep the Vite plugin.
