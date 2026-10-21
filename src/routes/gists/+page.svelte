@@ -42,7 +42,10 @@
 	let loginLoading = $state(false);
 
 	// Reactive state
-	let gists = $state<Gist[]>([]);
+	// `ownedGists` backs the All/Public/Secret filters; `starredGists` is a separate collection
+	// because it also contains gists owned by other users.
+	let ownedGists = $state<Gist[]>([]);
+	let starredGists = $state<Gist[]>([]);
 	let starredIds = new SvelteSet<string>();
 	let ownedIds = new SvelteSet<string>();
 
@@ -85,7 +88,8 @@
 		]);
 
 		user = currentUser;
-		gists = userGists;
+		ownedGists = userGists;
+		starredGists = starred;
 		starredIds.clear();
 		for (const g of starred) starredIds.add(g.id);
 		ownedIds.clear();
@@ -119,7 +123,8 @@
 		clearToken();
 		authenticated = false;
 		user = null;
-		gists = [];
+		ownedGists = [];
+		starredGists = [];
 		starredIds.clear();
 		ownedIds.clear();
 		selectedGist = null;
@@ -142,15 +147,17 @@
 
 	// Filtered & Sorted Gists
 	let displayedGists = $derived.by(() => {
-		const filtered = filterGists(gists, filter, starredIds, ownedIds);
+		// Starred gists are not a subset of the owned ones, so they come from their own collection.
+		const source = filter === 'starred' ? starredGists : ownedGists;
+		const filtered = filterGists(source, filter, starredIds, ownedIds);
 		const searched = searchGists(filtered, search);
 		return sortGists(searched, sortBy);
 	});
 
 	let counts = $derived({
 		all: ownedIds.size,
-		public: gists.filter((g) => g.public).length,
-		secret: gists.filter((g) => !g.public).length,
+		public: ownedGists.filter((g) => g.public).length,
+		secret: ownedGists.filter((g) => !g.public).length,
 		starred: starredIds.size
 	});
 
@@ -182,8 +189,13 @@
 
 		const wasStarred = starredIds.has(gist.id);
 		// Optimistic UI: flip first, undo if the request fails.
-		if (wasStarred) starredIds.delete(gist.id);
-		else starredIds.add(gist.id);
+		if (wasStarred) {
+			starredIds.delete(gist.id);
+		} else {
+			starredIds.add(gist.id);
+			// Keep the collection the Starred view renders from in sync with a newly starred gist.
+			if (!starredGists.some((g) => g.id === gist.id)) starredGists = [gist, ...starredGists];
+		}
 
 		try {
 			if (wasStarred) await unstarGist(token, gist.id);
@@ -207,7 +219,8 @@
 
 				try {
 					await deleteGist(token, gist.id);
-					gists = gists.filter((g) => g.id !== gist.id);
+					ownedGists = ownedGists.filter((g) => g.id !== gist.id);
+					starredGists = starredGists.filter((g) => g.id !== gist.id);
 					ownedIds.delete(gist.id);
 					starredIds.delete(gist.id);
 					addToast('success', 'Gist успешно удален');
@@ -249,7 +262,7 @@
 
 				const created = await createGist(token, { description, public: isPublic, files: fileMap });
 				const full = await fetchGist(token, created.id);
-				gists = [full, ...gists];
+				ownedGists = [full, ...ownedGists];
 				ownedIds.add(full.id);
 				addToast('success', 'Gist успешно создан');
 				view = 'list';
@@ -268,7 +281,8 @@
 					files: filePayload
 				});
 				const full = await fetchGist(token, updated.id);
-				gists = gists.map((g) => (g.id === full.id ? full : g));
+				ownedGists = ownedGists.map((g) => (g.id === full.id ? full : g));
+				starredGists = starredGists.map((g) => (g.id === full.id ? full : g));
 				selectedGist = full;
 				addToast('success', 'Gist успешно обновлен');
 				view = 'detail';
@@ -390,6 +404,7 @@
 						gist={selectedGist}
 						isStarred={starredIds.has(selectedGist.id)}
 						loading={contentLoading}
+						owned={ownedIds.has(selectedGist.id)}
 						onBack={() => (view = 'list')}
 						onEdit={() => (view = 'edit')}
 						onDelete={() => promptDelete(selectedGist!)}
