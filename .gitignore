@@ -8,6 +8,9 @@ node_modules
 /.svelte-kit
 /build
 
+# Logs
+*.log
+
 # Tooling
 .pi
 
@@ -24,3 +27,7 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+.spacefast/state.json
+/.spacefast-*
+.spacefast/.spacefast-*
+.spacefast/.space-link-*.tmp
