@@ -31,6 +31,7 @@
 	let sortBy = $state<'updated' | 'created' | 'name'>('updated');
 	let view = $state<ViewMode>('list');
 	let selectedGist = $state<Gist | null>(null);
+	let contentLoading = $state(false);
 
 	let toasts = $state<ToastMessage[]>([]);
 	let confirmAction = $state<ConfirmAction | null>(null);
@@ -59,6 +60,24 @@
 
 	function dismissToast(id: string) {
 		toasts = toasts.filter((t) => t.id !== id);
+	}
+
+	async function openGist(gist: Gist) {
+		// The gist list omits file content, so the detail and edit views need the full gist.
+		selectedGist = gist;
+		view = 'detail';
+
+		contentLoading = true;
+		try {
+			const res = await fetch(`/gists/${gist.id}`);
+			if (!res.ok) throw new Error(`Не удалось загрузить Gist (HTTP ${res.status})`);
+			const full = (await res.json()) as Gist;
+			if (selectedGist?.id === gist.id) selectedGist = full;
+		} catch (err) {
+			addToast('error', err instanceof Error ? err.message : 'Не удалось загрузить Gist');
+		} finally {
+			contentLoading = false;
+		}
 	}
 
 	// Filtered & Sorted Gists
@@ -346,10 +365,7 @@
 								<GistCard
 									{gist}
 									isStarred={starredIds.has(gist.id)}
-									onClick={() => {
-										selectedGist = gist;
-										view = 'detail';
-									}}
+									onClick={() => openGist(gist)}
 									onStarToggle={() => triggerStarToggle(gist)}
 								/>
 							{/each}
@@ -361,6 +377,7 @@
 					<GistDetail
 						gist={selectedGist}
 						isStarred={starredIds.has(selectedGist.id)}
+						loading={contentLoading}
 						onBack={() => (view = 'list')}
 						onEdit={() => (view = 'edit')}
 						onDelete={() => promptDelete(selectedGist!)}
