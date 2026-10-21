@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { onMount } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
+	import { Loader2 } from '@lucide/svelte';
 	import AuthScreen from '../../lib/components/gists/AuthScreen.svelte';
 	import Sidebar from '../../lib/components/gists/Sidebar.svelte';
 	import GistCard from '../../lib/components/gists/GistCard.svelte';
@@ -10,8 +11,21 @@
 	import ConfirmDialog from '../../lib/components/gists/ConfirmDialog.svelte';
 	import Button from '../../lib/components/ui/button/button.svelte';
 	import { filterGists, searchGists, sortGists } from '../../lib/gist-utils.js';
+	import { loadToken, saveToken, clearToken } from '../../lib/session.js';
+	import {
+		fetchAuthenticatedUser,
+		fetchUserGists,
+		fetchStarredGists,
+		fetchGist,
+		starGist,
+		unstarGist,
+		createGist,
+		updateGist,
+		deleteGist
+	} from '../../lib/github.js';
 	import type {
 		Gist,
+		GitHubUser,
 		GistFilter,
 		ViewMode,
 		ToastMessage,
@@ -19,7 +33,13 @@
 		GistFileInput
 	} from '../../lib/types/gist.js';
 
-	let { data } = $props();
+	// This page is prerendered with no server load: the token lives in localStorage and every
+	// GitHub call goes straight to api.github.com from the browser.
+	let initializing = $state(true);
+	let authenticated = $state(false);
+	let user = $state<GitHubUser | null>(null);
+	let authError = $state('');
+	let loginLoading = $state(false);
 
 	// Reactive state
 	let gists = $state<Gist[]>([]);
@@ -38,16 +58,74 @@
 	let saving = $state(false);
 	let editorError = $state('');
 
-	// Update reactivity when server data changes
-	$effect(() => {
-		if (data.authenticated && data.gists) {
-			gists = data.gists;
-			starredIds.clear();
-			for (const id of data.starredGistIds || []) starredIds.add(id);
-			ownedIds.clear();
-			for (const g of data.gists) ownedIds.add(g.id);
+	onMount(async () => {
+		const token = loadToken();
+		if (!token) {
+			initializing = false;
+			return;
+		}
+
+		try {
+			const currentUser = await fetchAuthenticatedUser(token);
+			await loadWorkspace(token, currentUser);
+			authenticated = true;
+		} catch (err) {
+			clearToken();
+			authError = describeAuthError(err);
+		} finally {
+			initializing = false;
 		}
 	});
+
+	async function loadWorkspace(token: string, currentUser: GitHubUser) {
+		const [userGists, starred] = await Promise.all([
+			fetchUserGists(token, currentUser.login),
+			fetchStarredGists(token)
+		]);
+
+		user = currentUser;
+		gists = userGists;
+		starredIds.clear();
+		for (const g of starred) starredIds.add(g.id);
+		ownedIds.clear();
+		for (const g of userGists) ownedIds.add(g.id);
+	}
+
+	function describeAuthError(err: unknown): string {
+		const message = err instanceof Error ? err.message : 'Неизвестная ошибка';
+		if (/bad credentials|unauthor|401/i.test(message)) {
+			return 'GitHub отклонил токен. Проверьте, что он действителен и имеет scope «gist».';
+		}
+		return `Не удалось подключиться к GitHub: ${message}`;
+	}
+
+	async function handleLogin(token: string) {
+		loginLoading = true;
+		authError = '';
+		try {
+			const currentUser = await fetchAuthenticatedUser(token);
+			await loadWorkspace(token, currentUser);
+			saveToken(token);
+			authenticated = true;
+		} catch (err) {
+			authError = describeAuthError(err);
+		} finally {
+			loginLoading = false;
+		}
+	}
+
+	function handleLogout() {
+		clearToken();
+		authenticated = false;
+		user = null;
+		gists = [];
+		starredIds.clear();
+		ownedIds.clear();
+		selectedGist = null;
+		view = 'list';
+		search = '';
+		filter = 'all';
+	}
 
 	function addToast(type: 'success' | 'error' | 'info', message: string) {
 		const id = Math.random().toString(36).slice(2, 9);
@@ -77,33 +155,24 @@
 
 	let sidebarCollapsed = $derived(view === 'create' || view === 'edit');
 
-	// Star Toggle Form submission
-	let starFormElement: HTMLFormElement | undefined = $state();
-	let starGistId = $state('');
-	let starIsStarred = $state('false');
+	async function triggerStarToggle(gist: Gist) {
+		const token = loadToken();
+		if (!token) return;
 
-	function triggerStarToggle(gist: Gist) {
-		const isStarred = starredIds.has(gist.id);
-		starGistId = gist.id;
-		starIsStarred = String(isStarred);
+		const wasStarred = starredIds.has(gist.id);
+		// Optimistic UI: flip first, undo if the request fails.
+		if (wasStarred) starredIds.delete(gist.id);
+		else starredIds.add(gist.id);
 
-		// Optimistic UI update
-		if (isStarred) {
-			starredIds.delete(gist.id);
-		} else {
-			starredIds.add(gist.id);
+		try {
+			if (wasStarred) await unstarGist(token, gist.id);
+			else await starGist(token, gist.id);
+		} catch (err) {
+			if (wasStarred) starredIds.add(gist.id);
+			else starredIds.delete(gist.id);
+			addToast('error', err instanceof Error ? err.message : 'Не удалось изменить избранное');
 		}
-
-		setTimeout(() => {
-			if (starFormElement) {
-				starFormElement.requestSubmit();
-			}
-		}, 0);
 	}
-
-	// Action Delete Form
-	let deleteFormElement: HTMLFormElement | undefined = $state();
-	let deleteGistId = $state('');
 
 	function promptDelete(gist: Gist) {
 		confirmAction = {
@@ -112,52 +181,81 @@
 			confirmLabel: 'Удалить',
 			danger: true,
 			onConfirm: async () => {
-				deleteGistId = gist.id;
-				setTimeout(() => {
-					if (deleteFormElement) {
-						deleteFormElement.requestSubmit();
-					}
-				}, 0);
+				const token = loadToken();
+				if (!token) return;
+
+				try {
+					await deleteGist(token, gist.id);
+					gists = gists.filter((g) => g.id !== gist.id);
+					ownedIds.delete(gist.id);
+					starredIds.delete(gist.id);
+					addToast('success', 'Gist успешно удален');
+					view = 'list';
+					selectedGist = null;
+				} catch (err) {
+					addToast('error', err instanceof Error ? err.message : 'Не удалось удалить Gist');
+				}
 			}
 		};
 	}
 
-	// Editor submit handlers
-	let createFormElement: HTMLFormElement | undefined = $state();
-	let createDesc = $state('');
-	let createPublic = $state('true');
-	let createFilesRaw = $state('');
-
-	let updateFormElement: HTMLFormElement | undefined = $state();
-	let updateGistId = $state('');
-	let updateDesc = $state('');
-	let updateFilesRaw = $state('');
-	let updateOrigNamesRaw = $state('');
-
-	function handleSaveGist(
+	async function handleSaveGist(
 		description: string,
 		isPublic: boolean,
 		files: GistFileInput[],
 		originalFilenames: string[]
 	) {
+		const token = loadToken();
+		if (!token) {
+			editorError = 'Сессия истекла, подключитесь заново';
+			return;
+		}
+
 		editorError = '';
 		saving = true;
 
-		if (view === 'create') {
-			createDesc = description;
-			createPublic = String(isPublic);
-			createFilesRaw = JSON.stringify(files);
-			setTimeout(() => {
-				if (createFormElement) createFormElement.requestSubmit();
-			}, 0);
-		} else if (view === 'edit' && selectedGist) {
-			updateGistId = selectedGist.id;
-			updateDesc = description;
-			updateFilesRaw = JSON.stringify(files);
-			updateOrigNamesRaw = JSON.stringify(originalFilenames);
-			setTimeout(() => {
-				if (updateFormElement) updateFormElement.requestSubmit();
-			}, 0);
+		try {
+			if (view === 'create') {
+				const fileMap: Record<string, { content: string }> = {};
+				for (const f of files) {
+					const name = f.filename.trim();
+					if (name) fileMap[name] = { content: f.content };
+				}
+				if (Object.keys(fileMap).length === 0) {
+					editorError = 'Укажите хотя бы один файл с именем';
+					return;
+				}
+
+				const created = await createGist(token, { description, public: isPublic, files: fileMap });
+				const full = await fetchGist(token, created.id);
+				gists = [full, ...gists];
+				ownedIds.add(full.id);
+				addToast('success', 'Gist успешно создан');
+				view = 'list';
+			} else if (view === 'edit' && selectedGist) {
+				const filePayload: Record<string, { content?: string; filename?: string } | null> = {};
+				for (const f of files) {
+					const name = f.filename.trim();
+					if (name) filePayload[name] = { content: f.content };
+				}
+				for (const origName of originalFilenames) {
+					if (!files.some((f) => f.filename.trim() === origName)) filePayload[origName] = null;
+				}
+
+				const updated = await updateGist(token, selectedGist.id, {
+					description,
+					files: filePayload
+				});
+				const full = await fetchGist(token, updated.id);
+				gists = gists.map((g) => (g.id === full.id ? full : g));
+				selectedGist = full;
+				addToast('success', 'Gist успешно обновлен');
+				view = 'detail';
+			}
+		} catch (err) {
+			editorError = err instanceof Error ? err.message : 'Не удалось сохранить Gist';
+		} finally {
+			saving = false;
 		}
 	}
 </script>
@@ -166,110 +264,21 @@
 	<title>Gist Manager — SvelteKit App</title>
 </svelte:head>
 
-{#if !data.authenticated}
-	<AuthScreen errorMessage={data.error} />
+{#if initializing}
+	<div class="min-h-[80vh] flex items-center justify-center">
+		<div class="flex items-center gap-2 text-sm text-muted-foreground">
+			<Loader2 class="h-4 w-4 animate-spin" />
+			<span>Восстановление сессии...</span>
+		</div>
+	</div>
+{:else if !authenticated}
+	<AuthScreen onLogin={handleLogin} loading={loginLoading} errorMessage={authError} />
 {:else}
-	<!-- Hidden forms for server action execution -->
-	<form
-		bind:this={starFormElement}
-		method="POST"
-		action="?/starToggle"
-		use:enhance={() => {
-			return async ({ result }) => {
-				if (result.type === 'failure') {
-					addToast('error', 'Не удалось изменить статус избранного');
-				}
-			};
-		}}
-		class="hidden"
-	>
-		<input type="hidden" name="gistId" value={starGistId} />
-		<input type="hidden" name="isStarred" value={starIsStarred} />
-	</form>
-
-	<form
-		bind:this={deleteFormElement}
-		method="POST"
-		action="?/deleteGist"
-		use:enhance={() => {
-			return async ({ result, update }) => {
-				if (result.type === 'success' && result.data) {
-					const deletedId = String(result.data.gistId);
-					gists = gists.filter((g) => g.id !== deletedId);
-					ownedIds.delete(deletedId);
-					starredIds.delete(deletedId);
-					addToast('success', 'Gist успешно удален');
-					view = 'list';
-					selectedGist = null;
-				} else {
-					addToast('error', 'Не удалось удалить Gist');
-				}
-				await update();
-			};
-		}}
-		class="hidden"
-	>
-		<input type="hidden" name="gistId" value={deleteGistId} />
-	</form>
-
-	<form
-		bind:this={createFormElement}
-		method="POST"
-		action="?/createGist"
-		use:enhance={() => {
-			return async ({ result, update }) => {
-				saving = false;
-				if (result.type === 'success' && result.data?.gist) {
-					const newGist = result.data.gist as Gist;
-					gists = [newGist, ...gists];
-					ownedIds.add(newGist.id);
-					addToast('success', 'Gist успешно создан');
-					view = 'list';
-				} else if (result.type === 'failure' && result.data?.error) {
-					editorError = String(result.data.error);
-				}
-				await update();
-			};
-		}}
-		class="hidden"
-	>
-		<input type="hidden" name="description" value={createDesc} />
-		<input type="hidden" name="isPublic" value={createPublic} />
-		<input type="hidden" name="files" value={createFilesRaw} />
-	</form>
-
-	<form
-		bind:this={updateFormElement}
-		method="POST"
-		action="?/updateGist"
-		use:enhance={() => {
-			return async ({ result, update }) => {
-				saving = false;
-				if (result.type === 'success' && result.data?.gist) {
-					const updatedGist = result.data.gist as Gist;
-					gists = gists.map((g) => (g.id === updatedGist.id ? updatedGist : g));
-					selectedGist = updatedGist;
-					addToast('success', 'Gist успешно обновлен');
-					view = 'detail';
-				} else if (result.type === 'failure' && result.data?.error) {
-					editorError = String(result.data.error);
-				}
-				await update();
-			};
-		}}
-		class="hidden"
-	>
-		<input type="hidden" name="gistId" value={updateGistId} />
-		<input type="hidden" name="description" value={updateDesc} />
-		<input type="hidden" name="files" value={updateFilesRaw} />
-		<input type="hidden" name="originalFilenames" value={updateOrigNamesRaw} />
-	</form>
-
 	<!-- Main Layout -->
 	<div class="flex h-[calc(100vh-4rem)] overflow-hidden bg-background">
 		<!-- Sidebar -->
 		<Sidebar
-			user={data.user!}
+			user={user!}
 			{filter}
 			{counts}
 			{search}
@@ -279,6 +288,7 @@
 				if (view !== 'list') view = 'list';
 			}}
 			onSearchChange={(s: string) => (search = s)}
+			onLogout={handleLogout}
 			onNewGist={() => {
 				selectedGist = null;
 				view = 'create';

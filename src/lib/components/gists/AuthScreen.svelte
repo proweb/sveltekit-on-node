@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import { KeyRound, ExternalLink, Eye, EyeOff, Loader2, FileCode2 } from '@lucide/svelte';
 	import Button from '../ui/button/button.svelte';
 	import Input from '../ui/input/input.svelte';
@@ -9,18 +8,24 @@
 	import CardDescription from '../ui/card/card-description.svelte';
 	import CardContent from '../ui/card/card-content.svelte';
 
-	let { errorMessage = '' }: { errorMessage?: string } = $props();
+	let {
+		onLogin,
+		loading = false,
+		errorMessage = ''
+	}: {
+		onLogin: (token: string) => void;
+		loading?: boolean;
+		errorMessage?: string;
+	} = $props();
 
 	let token = $state('');
 	let showToken = $state(false);
-	let loading = $state(false);
-	let localError = $state('');
 
-	$effect(() => {
-		if (errorMessage) {
-			localError = errorMessage;
-		}
-	});
+	function handleSubmit(event: SubmitEvent) {
+		event.preventDefault();
+		const trimmed = token.trim();
+		if (trimmed) onLogin(trimmed);
+	}
 </script>
 
 <div class="min-h-[80vh] flex items-center justify-center p-4">
@@ -41,28 +46,13 @@
 			<CardHeader class="space-y-1">
 				<CardTitle class="text-xl">Подключение к GitHub</CardTitle>
 				<CardDescription>
-					Введите Personal Access Token для доступа к вашим гистам. Токен сохранится на сервере.
+					Введите Personal Access Token для доступа к вашим гистам. Токен сохранится в этом
+					браузере.
 				</CardDescription>
 			</CardHeader>
 
 			<CardContent>
-				<form
-					method="POST"
-					action="?/login"
-					use:enhance={() => {
-						loading = true;
-						localError = '';
-						return async ({ result, update }) => {
-							loading = false;
-							if (result.type === 'failure' && result.data?.error) {
-								localError = String(result.data.error);
-							} else {
-								await update();
-							}
-						};
-					}}
-					class="space-y-4"
-				>
+				<form onsubmit={handleSubmit} class="space-y-4">
 					<div class="space-y-2">
 						<label
 							for="token-input"
@@ -100,11 +90,11 @@
 						</div>
 					</div>
 
-					{#if localError}
+					{#if errorMessage}
 						<div
 							class="p-3 text-xs rounded-lg bg-destructive/10 text-destructive border border-destructive/20 font-medium"
 						>
-							{localError}
+							{errorMessage}
 						</div>
 					{/if}
 

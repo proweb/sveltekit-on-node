@@ -5,7 +5,6 @@
 	import Button from '../ui/button/button.svelte';
 	import Input from '../ui/input/input.svelte';
 	import Badge from '../ui/badge/badge.svelte';
-	import { enhance } from '$app/forms';
 
 	let {
 		user,
@@ -15,6 +14,7 @@
 		collapsed = false,
 		onFilterChange,
 		onSearchChange,
+		onLogout,
 		onNewGist
 	}: {
 		user: GitHubUser;
@@ -24,6 +24,7 @@
 		collapsed?: boolean;
 		onFilterChange: (f: GistFilter) => void;
 		onSearchChange: (s: string) => void;
+		onLogout: () => void;
 		onNewGist: () => void;
 	} = $props();
 
@@ -72,17 +73,16 @@
 		</div>
 
 		{#if !collapsed}
-			<form method="POST" action="?/logout" use:enhance>
-				<Button
-					type="submit"
-					variant="ghost"
-					size="icon"
-					class="h-8 w-8 text-muted-foreground hover:text-destructive transition-colors shrink-0"
-					title="Выйти / Сменить токен"
-				>
-					<LogOut class="h-4 w-4" />
-				</Button>
-			</form>
+			<Button
+				type="button"
+				variant="ghost"
+				size="icon"
+				onclick={onLogout}
+				class="h-8 w-8 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+				title="Выйти / Сменить токен"
+			>
+				<LogOut class="h-4 w-4" />
+			</Button>
 		{/if}
 	</div>
 

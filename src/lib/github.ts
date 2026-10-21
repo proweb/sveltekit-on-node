@@ -1,11 +1,14 @@
-import type { Gist, GitHubUser, CreateGistPayload, UpdateGistPayload } from '../types/gist.js';
+import type { Gist, GitHubUser, CreateGistPayload, UpdateGistPayload } from './types/gist.js';
 
+// The app is a prerendered static site with no server, so the browser calls the GitHub REST API
+// directly. GitHub answers with `Access-Control-Allow-Origin: *` and its preflight allows the
+// Authorization header, so no proxy is needed.
 const API_BASE = 'https://api.github.com';
 
 function headers(token: string): HeadersInit {
 	return {
 		Authorization: `Bearer ${token}`,
-		Accept: 'application/vnd.github.v3+json',
+		Accept: 'application/vnd.github+json',
 		'X-GitHub-Api-Version': '2022-11-28'
 	};
 }
@@ -88,10 +91,7 @@ export async function checkIsStarred(token: string, id: string): Promise<boolean
 export async function starGist(token: string, id: string): Promise<void> {
 	const res = await fetch(`${API_BASE}/gists/${id}/star`, {
 		method: 'PUT',
-		headers: {
-			...headers(token),
-			'Content-Length': '0'
-		}
+		headers: headers(token)
 	});
 	if (!res.ok && res.status !== 204) {
 		throw new Error(`Failed to star gist (${res.status})`);

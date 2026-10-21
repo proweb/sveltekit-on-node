@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import type { ActionData, PageData } from './$types';
+	import { validateEntry, type EntryErrors, type EntryInput } from '../../lib/entry.js';
 	import {
 		Button,
 		Input,
@@ -20,9 +19,38 @@
 	} from '../../lib/index.js';
 	import { Send, User, Mail, MessageSquare, ListFilter, AlertCircle } from '@lucide/svelte';
 
-	let { data, form }: { data: PageData; form: ActionData } = $props();
+	interface Entry extends EntryInput {
+		id: string;
+		timestamp: Date;
+	}
 
-	let entries = $derived(data.entries || []);
+	// Demo-only in-memory state: it lives in the browser tab and is lost on reload. A static build
+	// has no server to keep it, which is fine for a form example. The seed entry uses a fixed id
+	// and timestamp so prerendering and hydration produce identical markup.
+	let entries = $state<Entry[]>([
+		{
+			id: 'seed',
+			name: 'first',
+			email: 'test',
+			message: 'test',
+			timestamp: new Date(0)
+		}
+	]);
+
+	let errors = $state<EntryErrors>({});
+	let formElement: HTMLFormElement | undefined = $state();
+
+	function handleSubmit(event: SubmitEvent) {
+		event.preventDefault();
+		const formData = new FormData(event.currentTarget as HTMLFormElement);
+		const { data, errors: validationErrors } = validateEntry(formData);
+		errors = validationErrors;
+
+		if (Object.keys(validationErrors).length > 0) return;
+
+		entries = [...entries, { id: crypto.randomUUID(), ...data, timestamp: new Date() }];
+		formElement?.reset();
+	}
 </script>
 
 <svelte:head>
@@ -35,12 +63,11 @@
 		<div class="text-center">
 			<Badge variant="secondary" class="mb-3 px-3 py-1">
 				<Send class="h-3.5 w-3.5 mr-1" />
-				SvelteKit Form Action
+				Форма и валидация
 			</Badge>
 			<h1 class="text-3xl md:text-5xl font-extrabold tracking-tight mb-4">Формы в SvelteKit</h1>
 			<p class="text-muted-foreground max-w-xl mx-auto">
-				Пример работы с серверными экшенами SvelteKit, валидацией данных и динамическим списком
-				записей.
+				Пример валидации данных и динамического списка записей на клиенте.
 			</p>
 		</div>
 
@@ -51,7 +78,7 @@
 				<CardDescription>Заполните форму ниже для добавления новой записи</CardDescription>
 			</CardHeader>
 			<CardContent>
-				<form method="POST" action="?/addEntry" use:enhance class="space-y-6">
+				<form onsubmit={handleSubmit} bind:this={formElement} class="space-y-6">
 					<!-- Name Field -->
 					<div class="space-y-2">
 						<label for="name" class="text-sm font-medium leading-none flex items-center gap-1.5">
@@ -63,14 +90,14 @@
 							name="name"
 							id="name"
 							placeholder="Введите имя"
-							class={form?.errors?.name ? 'border-destructive focus-visible:ring-destructive' : ''}
-							aria-invalid={!!form?.errors?.name}
+							class={errors.name ? 'border-destructive focus-visible:ring-destructive' : ''}
+							aria-invalid={!!errors.name}
 							required
 						/>
-						{#if form?.errors?.name}
+						{#if errors.name}
 							<p class="text-sm font-medium text-destructive flex items-center gap-1 mt-1">
 								<AlertCircle class="h-4 w-4" />
-								<span>{form.errors.name}</span>
+								<span>{errors.name}</span>
 							</p>
 						{/if}
 					</div>
@@ -86,14 +113,14 @@
 							name="email"
 							id="email"
 							placeholder="name@example.com"
-							class={form?.errors?.email ? 'border-destructive focus-visible:ring-destructive' : ''}
-							aria-invalid={!!form?.errors?.email}
+							class={errors.email ? 'border-destructive focus-visible:ring-destructive' : ''}
+							aria-invalid={!!errors.email}
 							required
 						/>
-						{#if form?.errors?.email}
+						{#if errors.email}
 							<p class="text-sm font-medium text-destructive flex items-center gap-1 mt-1">
 								<AlertCircle class="h-4 w-4" />
-								<span>{form.errors.email}</span>
+								<span>{errors.email}</span>
 							</p>
 						{/if}
 					</div>
@@ -109,16 +136,14 @@
 							id="message"
 							rows={5}
 							placeholder="Напишите ваше сообщение..."
-							class={form?.errors?.message
-								? 'border-destructive focus-visible:ring-destructive'
-								: ''}
-							aria-invalid={!!form?.errors?.message}
+							class={errors.message ? 'border-destructive focus-visible:ring-destructive' : ''}
+							aria-invalid={!!errors.message}
 							required
 						></Textarea>
-						{#if form?.errors?.message}
+						{#if errors.message}
 							<p class="text-sm font-medium text-destructive flex items-center gap-1 mt-1">
 								<AlertCircle class="h-4 w-4" />
-								<span>{form.errors.message}</span>
+								<span>{errors.message}</span>
 							</p>
 						{/if}
 					</div>
