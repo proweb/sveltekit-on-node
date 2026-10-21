@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createGist, deleteGist, fetchAuthenticatedUser, starGist } from './github.js';
+import { createGist, deleteGist, fetchAuthenticatedUser, fetchGist, starGist } from './github.js';
 
 function stubFetch(response: Response) {
 	const spy = vi.fn().mockResolvedValue(response);
@@ -40,6 +40,15 @@ describe('github client', () => {
 			public: false,
 			files: { 'a.md': { content: 'x' } }
 		});
+	});
+
+	it('fetches a single gist, which is where the file content lives', async () => {
+		const spy = stubFetch(Response.json({ id: '1', files: {} }));
+
+		await fetchGist('tok', '1');
+
+		const [url] = spy.mock.calls[0];
+		expect(url).toBe('https://api.github.com/gists/1');
 	});
 
 	it('accepts an empty 204 body for deletes and stars', async () => {

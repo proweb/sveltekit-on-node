@@ -11,7 +11,8 @@
 		FileCode2,
 		Copy,
 		Check,
-		Calendar
+		Calendar,
+		Loader2
 	} from '@lucide/svelte';
 	import CodeBlock from './CodeBlock.svelte';
 	import {
@@ -28,6 +29,7 @@
 	let {
 		gist,
 		isStarred = false,
+		loading = false,
 		onBack,
 		onEdit,
 		onDelete,
@@ -35,6 +37,7 @@
 	}: {
 		gist: Gist;
 		isStarred?: boolean;
+		loading?: boolean;
 		onBack: () => void;
 		onEdit: () => void;
 		onDelete: () => void;
@@ -163,8 +166,17 @@
 
 	<!-- Code files list -->
 	<div class="space-y-6">
-		{#each fileList as file (file.filename)}
-			<CodeBlock {file} />
-		{/each}
+		{#if loading}
+			<div
+				class="p-6 rounded-xl border bg-card text-sm text-muted-foreground flex items-center gap-2"
+			>
+				<Loader2 class="h-4 w-4 animate-spin" />
+				<span>Загрузка содержимого…</span>
+			</div>
+		{:else}
+			{#each fileList as file (file.filename)}
+				<CodeBlock {file} />
+			{/each}
+		{/if}
 	</div>
 </div>

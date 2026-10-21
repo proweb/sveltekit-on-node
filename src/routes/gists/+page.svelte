@@ -51,6 +51,7 @@
 	let sortBy = $state<'updated' | 'created' | 'name'>('updated');
 	let view = $state<ViewMode>('list');
 	let selectedGist = $state<Gist | null>(null);
+	let contentLoading = $state(false);
 
 	let toasts = $state<ToastMessage[]>([]);
 	let confirmAction = $state<ConfirmAction | null>(null);
@@ -154,6 +155,26 @@
 	});
 
 	let sidebarCollapsed = $derived(view === 'create' || view === 'edit');
+
+	async function openGist(gist: Gist) {
+		// The gist list endpoint omits file content, so the detail and edit views need the full
+		// gist fetched separately.
+		selectedGist = gist;
+		view = 'detail';
+
+		const token = loadToken();
+		if (!token) return;
+
+		contentLoading = true;
+		try {
+			const full = await fetchGist(token, gist.id);
+			if (selectedGist?.id === gist.id) selectedGist = full;
+		} catch (err) {
+			addToast('error', err instanceof Error ? err.message : 'Не удалось загрузить Gist');
+		} finally {
+			contentLoading = false;
+		}
+	}
 
 	async function triggerStarToggle(gist: Gist) {
 		const token = loadToken();
@@ -356,10 +377,7 @@
 								<GistCard
 									{gist}
 									isStarred={starredIds.has(gist.id)}
-									onClick={() => {
-										selectedGist = gist;
-										view = 'detail';
-									}}
+									onClick={() => openGist(gist)}
 									onStarToggle={() => triggerStarToggle(gist)}
 								/>
 							{/each}
@@ -371,6 +389,7 @@
 					<GistDetail
 						gist={selectedGist}
 						isStarred={starredIds.has(selectedGist.id)}
+						loading={contentLoading}
 						onBack={() => (view = 'list')}
 						onEdit={() => (view = 'edit')}
 						onDelete={() => promptDelete(selectedGist!)}
