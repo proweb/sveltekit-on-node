@@ -21,8 +21,10 @@
 
 	let { data } = $props();
 
-	// Reactive state
-	let gists = $state<Gist[]>([]);
+	// Reactive state. `ownedGists` backs the All/Public/Secret filters; `starredGists` is a
+	// separate collection because it also contains gists owned by other users.
+	let ownedGists = $state<Gist[]>([]);
+	let starredGists = $state<Gist[]>([]);
 	let starredIds = new SvelteSet<string>();
 	let ownedIds = new SvelteSet<string>();
 
@@ -42,11 +44,18 @@
 	// Update reactivity when server data changes
 	$effect(() => {
 		if (data.authenticated && data.gists) {
-			gists = data.gists;
+			// Read from `data` only. Reading back the state written here would re-trigger the
+			// effect on every pass, because assigning an array always re-proxies it.
+			const owned = data.gists;
+			const starred = data.starredGists ?? [];
+
+			ownedGists = owned;
+			starredGists = starred;
+
 			starredIds.clear();
-			for (const id of data.starredGistIds || []) starredIds.add(id);
+			for (const g of starred) starredIds.add(g.id);
 			ownedIds.clear();
-			for (const g of data.gists) ownedIds.add(g.id);
+			for (const g of owned) ownedIds.add(g.id);
 		}
 	});
 
@@ -82,15 +91,17 @@
 
 	// Filtered & Sorted Gists
 	let displayedGists = $derived.by(() => {
-		const filtered = filterGists(gists, filter, starredIds, ownedIds);
+		// Starred gists are not a subset of the owned ones, so they come from their own collection.
+		const source = filter === 'starred' ? starredGists : ownedGists;
+		const filtered = filterGists(source, filter, starredIds, ownedIds);
 		const searched = searchGists(filtered, search);
 		return sortGists(searched, sortBy);
 	});
 
 	let counts = $derived({
 		all: ownedIds.size,
-		public: gists.filter((g) => g.public).length,
-		secret: gists.filter((g) => !g.public).length,
+		public: ownedGists.filter((g) => g.public).length,
+		secret: ownedGists.filter((g) => !g.public).length,
 		starred: starredIds.size
 	});
 
@@ -111,6 +122,8 @@
 			starredIds.delete(gist.id);
 		} else {
 			starredIds.add(gist.id);
+			// The Starred view renders its own collection, so keep it in sync.
+			if (!starredGists.some((g) => g.id === gist.id)) starredGists = [gist, ...starredGists];
 		}
 
 		setTimeout(() => {
@@ -196,6 +209,13 @@
 		use:enhance={() => {
 			return async ({ result }) => {
 				if (result.type === 'failure') {
+					// Undo the optimistic update.
+					if (starIsStarred === 'true') {
+						starredIds.add(starGistId);
+					} else {
+						starredIds.delete(starGistId);
+						starredGists = starredGists.filter((g) => g.id !== starGistId);
+					}
 					addToast('error', 'Не удалось изменить статус избранного');
 				}
 			};
@@ -214,7 +234,8 @@
 			return async ({ result, update }) => {
 				if (result.type === 'success' && result.data) {
 					const deletedId = String(result.data.gistId);
-					gists = gists.filter((g) => g.id !== deletedId);
+					ownedGists = ownedGists.filter((g) => g.id !== deletedId);
+					starredGists = starredGists.filter((g) => g.id !== deletedId);
 					ownedIds.delete(deletedId);
 					starredIds.delete(deletedId);
 					addToast('success', 'Gist успешно удален');
@@ -240,7 +261,7 @@
 				saving = false;
 				if (result.type === 'success' && result.data?.gist) {
 					const newGist = result.data.gist as Gist;
-					gists = [newGist, ...gists];
+					ownedGists = [newGist, ...ownedGists];
 					ownedIds.add(newGist.id);
 					addToast('success', 'Gist успешно создан');
 					view = 'list';
@@ -266,7 +287,8 @@
 				saving = false;
 				if (result.type === 'success' && result.data?.gist) {
 					const updatedGist = result.data.gist as Gist;
-					gists = gists.map((g) => (g.id === updatedGist.id ? updatedGist : g));
+					ownedGists = ownedGists.map((g) => (g.id === updatedGist.id ? updatedGist : g));
+					starredGists = starredGists.map((g) => (g.id === updatedGist.id ? updatedGist : g));
 					selectedGist = updatedGist;
 					addToast('success', 'Gist успешно обновлен');
 					view = 'detail';
@@ -378,6 +400,7 @@
 						gist={selectedGist}
 						isStarred={starredIds.has(selectedGist.id)}
 						loading={contentLoading}
+						owned={ownedIds.has(selectedGist.id)}
 						onBack={() => (view = 'list')}
 						onEdit={() => (view = 'edit')}
 						onDelete={() => promptDelete(selectedGist!)}

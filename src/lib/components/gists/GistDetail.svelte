@@ -30,6 +30,7 @@
 		gist,
 		isStarred = false,
 		loading = false,
+		owned = false,
 		onBack,
 		onEdit,
 		onDelete,
@@ -38,6 +39,7 @@
 		gist: Gist;
 		isStarred?: boolean;
 		loading?: boolean;
+		owned?: boolean;
 		onBack: () => void;
 		onEdit: () => void;
 		onDelete: () => void;
@@ -99,15 +101,18 @@
 				<ExternalLink class="h-3.5 w-3.5" />
 			</a>
 
-			<Button variant="secondary" size="sm" class="gap-1.5" onclick={onEdit}>
-				<Edit3 class="h-4 w-4" />
-				<span>Edit</span>
-			</Button>
+			<!-- Editing and deleting only apply to gists this user owns. -->
+			{#if owned}
+				<Button variant="secondary" size="sm" class="gap-1.5" onclick={onEdit}>
+					<Edit3 class="h-4 w-4" />
+					<span>Edit</span>
+				</Button>
 
-			<Button variant="destructive" size="sm" class="gap-1.5" onclick={onDelete}>
-				<Trash2 class="h-4 w-4" />
-				<span>Delete</span>
-			</Button>
+				<Button variant="destructive" size="sm" class="gap-1.5" onclick={onDelete}>
+					<Trash2 class="h-4 w-4" />
+					<span>Delete</span>
+				</Button>
+			{/if}
 		</div>
 	</div>
 

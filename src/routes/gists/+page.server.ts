@@ -22,7 +22,7 @@ export const load: PageServerLoad = async () => {
 			authenticated: false,
 			user: null as GitHubUser | null,
 			gists: [] as Gist[],
-			starredGistIds: [] as string[]
+			starredGists: [] as Gist[]
 		};
 	}
 
@@ -33,13 +33,11 @@ export const load: PageServerLoad = async () => {
 			fetchStarredGists(token)
 		]);
 
-		const starredGistIds = starred.map((g: Gist) => g.id);
-
 		return {
 			authenticated: true,
 			user,
 			gists,
-			starredGistIds
+			starredGists: starred
 		};
 	} catch (err) {
 		console.error('Error loading GitHub data with stored token:', err);
@@ -48,7 +46,7 @@ export const load: PageServerLoad = async () => {
 			authenticated: false,
 			user: null,
 			gists: [],
-			starredGistIds: [],
+			starredGists: [],
 			error: err instanceof Error ? err.message : 'Invalid or expired GitHub token'
 		};
 	}
