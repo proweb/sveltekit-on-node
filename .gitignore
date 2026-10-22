@@ -21,6 +21,9 @@ Thumbs.db
 !.env.example
 !.env.test
 
+# GitHub token written by the gists login action
+.gist-token.json
+
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
